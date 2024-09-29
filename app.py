@@ -5,7 +5,8 @@ import re
 from PyQt6.QtCore import Qt, QDir, QModelIndex, QRect, QSize # Se añadieron QRect y QSize
 from PyQt6.QtGui import QAction, QFont, QColor, QPalette, QSyntaxHighlighter, QTextCharFormat, QTextCursor, QFileSystemModel, QPainter, QTextFormat # Se añadieron QPainter y QTextFormat
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QPlainTextEdit, QFileDialog, 
-                             QTreeView, QSplitter, QVBoxLayout, QWidget, QMenuBar, QTextEdit)
+                             QTreeView, QSplitter, QVBoxLayout, QWidget, QMenuBar, QTextEdit,
+                             QPushButton, QHBoxLayout, QLabel, QLineEdit, QDialog)
 
 class PythonHighlighter(QSyntaxHighlighter):
     def __init__(self, document):
@@ -179,37 +180,72 @@ class EditorTexto(QMainWindow):
         self.initUI()
 
     def initUI(self):
-        self.splitter = QSplitter(Qt.Orientation.Horizontal)
+        # Ventana de bienvenida
+        self.welcome_screen = QWidget()
+        welcome_layout = QVBoxLayout()
 
-        self.tree = QTreeView()
-        self.model = QFileSystemModel()
-        self.model.setRootPath(QDir.rootPath())
-        self.tree.setModel(self.model)
-        self.tree.setRootIndex(self.model.index(QDir.currentPath()))
-        self.tree.clicked.connect(self.on_file_selected)
+        self.welcome_label = QLabel("Bienvenido")
+        self.welcome_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        welcome_layout.addWidget(self.welcome_label)
 
-        self.editor = CodeEditor()
-        self.highlighter = PythonHighlighter(self.editor.document())
-        self.setup_editor()
+        self.open_workspace_btn = QPushButton("Abrir nueva área de trabajo")
+        self.open_workspace_btn.clicked.connect(self.abrirCarpeta)
+        welcome_layout.addWidget(self.open_workspace_btn)
 
-        self.splitter.addWidget(self.tree)
-        self.splitter.addWidget(self.editor)
-        self.splitter.setStretchFactor(1, 4)
+        self.welcome_screen.setLayout(welcome_layout)
+        self.setCentralWidget(self.welcome_screen)
 
-        main_layout = QVBoxLayout()
-        main_layout.addWidget(self.splitter)
-
-        central_widget = QWidget()
-        central_widget.setLayout(main_layout)
-        self.setCentralWidget(central_widget)
-
-        self.crearAcciones() # Cambiado para incluir la opción de abrir carpetas
+        # Menú y acciones
+        self.crearAcciones()
         self.crearMenus()
 
         self.setGeometry(100, 100, 1200, 800)
         self.setWindowTitle('Editor de Código')
         self.set_dark_theme()
         self.show()
+
+    def setup_workspace_ui(self):
+        """Configuración del UI para cuando se abre un área de trabajo"""
+        self.splitter = QSplitter(Qt.Orientation.Horizontal)
+
+        # Barra lateral con el árbol de archivos
+        self.tree = QTreeView()
+        self.model = QFileSystemModel()
+        self.tree.setModel(self.model)
+        self.tree.setRootIndex(self.model.index(QDir.currentPath()))
+        self.tree.clicked.connect(self.on_file_selected)
+
+        # Botones para crear archivos y carpetas
+        button_layout = QHBoxLayout()
+        self.btn_crear_archivo = QPushButton("Nuevo archivo")
+        self.btn_crear_archivo.clicked.connect(self.crearArchivo)
+        button_layout.addWidget(self.btn_crear_archivo)
+
+        self.btn_crear_carpeta = QPushButton("Nueva carpeta")
+        self.btn_crear_carpeta.clicked.connect(self.crearCarpeta)
+        button_layout.addWidget(self.btn_crear_carpeta)
+
+        # Campo de texto para ingresar el nombre del archivo o carpeta
+        self.input_nombre = QLineEdit()
+        self.input_nombre.setPlaceholderText("Nombre del archivo/carpeta")
+        button_layout.addWidget(self.input_nombre)
+
+        sidebar_layout = QVBoxLayout()
+        sidebar_layout.addLayout(button_layout)
+        sidebar_layout.addWidget(self.tree)
+
+        sidebar_widget = QWidget()
+        sidebar_widget.setLayout(sidebar_layout)
+
+        self.editor = CodeEditor()
+        self.highlighter = PythonHighlighter(self.editor.document())
+        self.setup_editor()
+
+        self.splitter.addWidget(sidebar_widget)
+        self.splitter.addWidget(self.editor)
+        self.splitter.setStretchFactor(1, 4)
+
+        self.setCentralWidget(self.splitter)
 
     def setup_editor(self):
         font = QFont()
@@ -244,9 +280,9 @@ class EditorTexto(QMainWindow):
         self.guardar_archivo.setShortcut('Ctrl+S')
         self.guardar_archivo.triggered.connect(self.guardarArchivo)
 
-        self.abrir_carpeta = QAction('Abrir carpeta', self)  # NUEVO
-        self.abrir_carpeta.setShortcut('Ctrl+Shift+O')  # NUEVO
-        self.abrir_carpeta.triggered.connect(self.abrirCarpeta)  # NUEVO
+        self.abrir_carpeta = QAction('Abrir carpeta', self)
+        self.abrir_carpeta.setShortcut('Ctrl+Shift+O') 
+        self.abrir_carpeta.triggered.connect(self.abrirCarpeta)
 
         self.salir = QAction('Salir', self)
         self.salir.setShortcut('Ctrl+Q')
@@ -256,9 +292,33 @@ class EditorTexto(QMainWindow):
         menubar = self.menuBar()
         menu_archivo = menubar.addMenu('Archivo')
         menu_archivo.addAction(self.abrir_archivo)
-        menu_archivo.addAction(self.abrir_carpeta)  # NUEVO
+        menu_archivo.addAction(self.abrir_carpeta)
         menu_archivo.addAction(self.guardar_archivo)
         menu_archivo.addAction(self.salir)
+
+    def crearArchivo(self):
+        file_name = self.input_nombre.text().strip()
+        if file_name:
+            folder_path = self.model.rootPath()
+            full_path = os.path.join(folder_path, file_name)
+            if not full_path.endswith(('.txt', '.py')):
+                full_path += '.txt'  # Asignar una extensión por defecto
+
+            with open(full_path, 'w') as file:
+                file.write("")  # Crear archivo vacío
+
+            self.model.setRootPath(folder_path)  # Actualizar la vista del directorio
+            self.input_nombre.clear()  # Limpiar el campo de entrada
+
+    def crearCarpeta(self):
+        folder_name = self.input_nombre.text().strip()
+        if folder_name:
+            folder_path = self.model.rootPath()
+            new_folder_path = os.path.join(folder_path, folder_name)
+            os.makedirs(new_folder_path, exist_ok=True)  # Crear carpeta
+
+            self.model.setRootPath(folder_path)  # Actualizar la vista del directorio
+            self.input_nombre.clear()  # Limpiar el campo de entrada
 
     def abrirArchivo(self, file_path=None):
         path, _ = QFileDialog.getOpenFileName(self, "Abrir archivo", "", 
@@ -272,6 +332,11 @@ class EditorTexto(QMainWindow):
     def abrirCarpeta(self):  # NUEVO
         folder_path = QFileDialog.getExistingDirectory(self, "Abrir carpeta", "")
         if folder_path:
+            # Si aún no se ha inicializado el área de trabajo, configúralo.
+            if not hasattr(self, 'model'):
+                self.setup_workspace_ui()
+        
+            # Actualizar la vista del directorio con la carpeta seleccionada
             self.model.setRootPath(folder_path)
             self.tree.setRootIndex(self.model.index(folder_path))
 
