@@ -512,14 +512,21 @@ class EditorTexto(QMainWindow):
 
     def open_file(self, file_path):
     # Verificar si el archivo ya está abierto
-     for i in range(self.tab_widget.count()):
-        if self.tab_widget.tabToolTip(i) == file_path:
-            self.tab_widget.setCurrentIndex(i)
-            return
+        for i in range(self.tab_widget.count()):
+            if self.tab_widget.tabToolTip(i) == file_path:
+                self.tab_widget.setCurrentIndex(i)
+                return
 
-    # Si no está abierto, crear una nueva pestaña
-     with open(file_path, 'r') as file:
-        content = file.read()
+        # Si no está abierto, crear una nueva pestaña
+        try:
+            # Intentar abrir el archivo con utf-8
+            with open(file_path, 'r', encoding='utf-8') as file:
+                content = file.read()
+        except UnicodeDecodeError:
+            # Si utf-8 falla, intentar con latin-1
+            with open(file_path, 'r', encoding='latin-1') as file:
+                content = file.read()
+
         editor = CodeEditor()  # Usar la nueva versión de CodeEditor
         editor.setPlainText(content)
 
