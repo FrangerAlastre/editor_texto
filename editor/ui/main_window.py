@@ -247,6 +247,28 @@ class EditorTexto(QMainWindow):
 
     def crearMenus(self):
         menubar = self.menuBar()
+        menubar.setStyleSheet("""
+            QMenuBar {
+                background-color: #353535;  /* Color de fondo oscuro */
+                color: white;  /* Color del texto */
+            }
+            QMenuBar::item:selected { 
+                background-color: #505050;  /* Color de fondo para item seleccionado */
+            }
+            QMenuBar::item:pressed {
+                background-color: #505050;  /* Color de fondo cuando el item está presionado */
+            }
+            QMenu {
+                background-color: #353535;
+                color: white;
+                border: 1px solid #2c2c2c;
+            }
+            QMenu::item:selected {
+                background-color: #505050;
+                color: white;
+            }
+        """)
+        
         menu_archivo = menubar.addMenu('Archivo')
         menu_archivo.addAction(self.abrir_archivo)
         menu_archivo.addAction(self.abrir_carpeta)
