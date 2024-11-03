@@ -1,239 +1,13 @@
 import os
-import sys
-import re
 import shutil
-
-
-from PyQt6.QtCore import Qt, QDir, QModelIndex, QRect, QSize
-from PyQt6.QtGui import QAction, QFont, QColor, QPalette, QSyntaxHighlighter, QTextCharFormat, QTextCursor, QFileSystemModel, QPainter, QTextFormat , QDrag, QIcon
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QPlainTextEdit, QFileDialog, QAbstractItemView,
-                             QTreeView, QSplitter, QVBoxLayout, QWidget, QMenuBar, QTextEdit,
-                             QPushButton, QHBoxLayout, QLabel, QLineEdit, QDialog, QTabWidget,
-                             QMenu, QInputDialog, QMessageBox)
-
-class PythonHighlighter(QSyntaxHighlighter):
-    def __init__(self, document):
-        super().__init__(document)
-        self.highlighting_rules = []
-
-        # Definir formatos para diferentes tipos de tokens
-        keyword_format = QTextCharFormat()
-        keyword_format.setForeground(QColor("#ff79c6"))
-        keyword_format.setFontWeight(QFont.Weight.Bold)
-
-        string_format = QTextCharFormat()
-        string_format.setForeground(QColor("#f1fa8c"))
-
-        comment_format = QTextCharFormat()
-        comment_format.setForeground(QColor("#6272a4"))
-        comment_format.setFontItalic(True)
-
-        # Definir palabras clave y patrones
-        keywords = [
-            r'\bclass\b', r'\bdef\b', r'\breturn\b', r'\bif\b', r'\belse\b', r'\belif\b',
-            r'\bwhile\b', r'\bfor\b', r'\bin\b', r'\bimport\b', r'\bfrom\b', r'\bas\b', 
-            r'\bwith\b', r'\btry\b', r'\bexcept\b', r'\bfinally\b', r'\bpass\b',
-            r'\bcontinue\b', r'\bbreak\b', r'\braise\b', r'\bTrue\b', r'\bFalse\b', r'\bNone\b'
-        ]
-
-        # Agregar reglas de resaltado
-        for keyword in keywords:
-            pattern = re.compile(keyword)
-            self.highlighting_rules.append((pattern, keyword_format))
-
-        # Reglas para strings y comentarios
-        self.highlighting_rules.append((re.compile(r'\".*?\"|\'.*?\''), string_format))
-        self.highlighting_rules.append((re.compile(r'#.*'), comment_format))
-
-    def highlightBlock(self, text):
-        for pattern, format in self.highlighting_rules:
-            for match in pattern.finditer(text):
-                start, end = match.span()
-                self.setFormat(start, end - start, format)
-
-class CodeEditor(QPlainTextEdit):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.highlighter = PythonHighlighter(self.document())
-        
-        # Conectar la señal textChanged al método de actualización
-        self.textChanged.connect(self.update_highlighting)
-
-    def update_highlighting(self):
-        # Este método se llama cada vez que el texto cambia
-        # El resaltador se actualizará automáticamente
-        pass
-
-class LineNumberArea(QWidget):
-    def __init__(self, editor):
-        super().__init__(editor)
-        self.code_editor = editor
-
-    def sizeHint(self):
-        return QSize(self.code_editor.line_number_area_width(), 0)
-
-    def paintEvent(self, event):
-        self.code_editor.line_number_area_paint_event(event)
-
-class CodeEditor(QPlainTextEdit):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.line_number_area = LineNumberArea(self)
-        
-        # Agregar el resaltador de sintaxis aquí
-        self.highlighter = PythonHighlighter(self.document())
-
-        # Conectar los eventos de actualización
-        self.blockCountChanged.connect(self.update_line_number_area_width)
-        self.updateRequest.connect(self.update_line_number_area)
-        self.cursorPositionChanged.connect(self.highlight_current_line)
-
-        self.update_line_number_area_width(0)
-        self.highlight_current_line()
-
-
-    def update_line_number_area_width(self, _=None):
-        self.setViewportMargins(self.line_number_area_width(), 0, 0, 0)
-
-    def line_number_area_width(self):
-        digits = 1
-        max_block = max(1, self.blockCount())
-        while max_block >= 10:
-            max_block /= 10
-            digits += 1
-        space = 3 + self.fontMetrics().horizontalAdvance('9') * digits
-        return space
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        cr = self.contentsRect()
-        self.line_number_area.setGeometry(cr.left(), cr.top(), self.line_number_area_width(), cr.height())
-
-    def update_line_number_area(self, rect, dy):
-        if dy:
-            self.line_number_area.scroll(0, dy)
-        else:
-            self.line_number_area.update(0, rect.y(), self.line_number_area.width(), rect.height())
-        if rect.contains(self.viewport().rect()):
-            self.update_line_number_area_width(0)
-
-    def highlight_current_line(self):
-        extra_selections = []
-        if not self.isReadOnly():
-            selection = QTextEdit.ExtraSelection()
-            line_color = QColor(Qt.GlobalColor.yellow).lighter(160)
-
-            selection.format.setBackground(line_color)
-            selection.cursor = self.textCursor()
-            selection.cursor.clearSelection()
-
-            extra_selections.append(selection)
-
-        self.setExtraSelections(extra_selections)
-
-    def line_number_area_paint_event(self, event):
-        painter = QPainter(self.line_number_area)
-        painter.fillRect(event.rect(), Qt.GlobalColor.lightGray)
-
-        block = self.firstVisibleBlock()
-        block_number = block.blockNumber()
-        top = self.blockBoundingGeometry(block).translated(self.contentOffset()).top()
-        bottom = top + self.blockBoundingRect(block).height()
-
-        while block.isValid() and top <= event.rect().bottom():
-            if block.isVisible() and bottom >= event.rect().top():
-                number = str(block_number + 1)
-                painter.setPen(Qt.GlobalColor.black)
-                painter.drawText(0, int(top), self.line_number_area.width(), self.fontMetrics().height(),
-                                 Qt.AlignmentFlag.AlignRight, number)
-
-            block = block.next()
-            top = bottom
-            bottom = top + self.blockBoundingRect(block).height()
-            block_number += 1
-
-class DragDropTreeView(QTreeView):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setDragEnabled(True)
-        self.setAcceptDrops(True)
-        self.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
-        self.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
-
-    def mousePressEvent(self, event):
-        super().mousePressEvent(event)
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.dragStartPosition = event.position().toPoint()  # Usar .position() en PyQt6
-
-    def mouseMoveEvent(self, event):
-        if not (event.buttons() & Qt.MouseButton.LeftButton):
-            return
-        if (event.position().toPoint() - self.dragStartPosition).manhattanLength() < QApplication.startDragDistance():
-            return
-        
-        drag = QDrag(self)
-        mimedata = self.model().mimeData(self.selectedIndexes())
-        drag.setMimeData(mimedata)
-        
-        drag.exec(Qt.DropAction.MoveAction)
-
-    def dragEnterEvent(self, event):
-        if event.mimeData().hasUrls() or event.source() == self:
-            event.acceptProposedAction()
-        else:
-            event.ignore()
-
-    def dragMoveEvent(self, event):
-        if event.mimeData().hasUrls() or event.source() == self:
-            event.acceptProposedAction()
-        else:
-            event.ignore()
-
-    def dropEvent(self, event):
-        if event.mimeData().hasUrls():
-            # Si se arrastran archivos desde fuera
-            event.acceptProposedAction()
-            for url in event.mimeData().urls():
-                target_index = self.indexAt(event.position().toPoint())
-                if target_index.isValid():
-                    if self.model().isDir(target_index):
-                        destination = self.model().filePath(target_index)
-                    else:
-                        destination = self.model().filePath(target_index.parent())
-                else:
-                    destination = self.model().rootPath()
-
-                source = url.toLocalFile()
-                if os.path.isfile(source):
-                    shutil.move(source, os.path.join(destination, os.path.basename(source)))
-                elif os.path.isdir(source):
-                    shutil.move(source, destination)
-
-            # Actualiza la vista del árbol después de mover los archivos
-            self.model().setRootPath(self.model().rootPath())
-        elif event.source() == self:
-            # Si se arrastran archivos dentro del propio árbol (movimiento interno)
-            event.acceptProposedAction()
-            target_index = self.indexAt(event.position().toPoint())
-            for source_index in self.selectedIndexes():
-                source_path = self.model().filePath(source_index)
-                if target_index.isValid():
-                    if self.model().isDir(target_index):
-                        destination_path = self.model().filePath(target_index)
-                    else:
-                        destination_path = self.model().filePath(target_index.parent())
-                else:
-                    destination_path = self.model().rootPath()
-
-                # Mover archivos o carpetas internamente
-                if os.path.exists(source_path):
-                    shutil.move(source_path, os.path.join(destination_path, os.path.basename(source_path)))
-
-            # Actualiza la vista del árbol después de mover los archivos
-            self.model().setRootPath(self.model().rootPath())
-        else:
-            event.ignore()
-
+from PyQt6.QtGui import QAction
+from PyQt6.QtCore import Qt, QDir
+from PyQt6.QtGui import QIcon, QColor, QPalette, QFileSystemModel
+from PyQt6.QtWidgets import (QMainWindow, QFileDialog, QSplitter, QVBoxLayout, 
+                           QWidget, QLabel, QPushButton, QHBoxLayout, QLineEdit,
+                           QMessageBox, QInputDialog, QTabWidget, QMenu)
+from .tree_view import DragDropTreeView
+from ..editor.code_editor import CodeEditor
 
 class EditorTexto(QMainWindow):
     def __init__(self):
@@ -386,6 +160,7 @@ class EditorTexto(QMainWindow):
             if not self.model.isDir(index):
                 move_action = menu.addAction("Mover")
                 move_action.triggered.connect(lambda: self.move_file(index))
+
         else:
             # Si no se hizo clic en un elemento válido, asumimos que se hizo clic en el espacio vacío
             create_file_action = menu.addAction("Crear archivo ")
@@ -551,6 +326,7 @@ class EditorTexto(QMainWindow):
                     file.write(current_tab.toPlainText())
             else:
                 self.guardarArchivoComo()
+                
 
     def guardarArchivoComo(self):
         current_tab = self.tab_widget.currentWidget()
@@ -571,11 +347,3 @@ class EditorTexto(QMainWindow):
         
             self.model.setRootPath(folder_path)
             self.tree.setRootIndex(self.model.index(folder_path))
-
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    project_dir = os.path.dirname(os.path.abspath(__file__))
-    icon_path = os.path.join(project_dir, 'logo', 'app_icon.ico')
-    app.setWindowIcon(QIcon(icon_path))
-    ex = EditorTexto()
-    sys.exit(app.exec())
