@@ -9,6 +9,8 @@ from PyQt6.QtWidgets import (QMainWindow, QFileDialog, QSplitter, QVBoxLayout,
 from .tree_view import DragDropTreeView
 from ..editor.code_editor import CodeEditor
 
+#featurecolor
+
 class EditorTexto(QMainWindow):
     def __init__(self):
         super().__init__()
