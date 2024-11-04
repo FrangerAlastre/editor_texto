@@ -1,6 +1,6 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QPlainTextEdit, QWidget,QTextEdit 
-from PyQt6.QtGui import QPainter, QColor, QTextFormat , QPalette
+from PyQt6.QtGui import QPainter, QColor, QTextFormat , QPalette,QFont
 from .syntax_highlighter import PythonHighlighter
 from .line_numbers import LineNumberArea
 
@@ -21,7 +21,19 @@ class CodeEditor(QPlainTextEdit):
         self.highlight_current_line()
 
         self.apply_dark_theme()
+        self.set_editor_font()
 
+
+
+    def set_editor_font(self):
+        # Cambiar la fuente a una más moderna
+        font = QFont("Cascadia Code", 11)  # Puedes cambiar "Fira Code" por cualquier otra fuente
+        font.setStyleHint(QFont.StyleHint.Monospace)
+        self.setFont(font)    
+
+
+
+   
     def apply_dark_theme(self):
         palette = QPalette()
         palette.setColor(QPalette.ColorRole.Base, QColor(25, 25, 25))  # Fondo del editor
