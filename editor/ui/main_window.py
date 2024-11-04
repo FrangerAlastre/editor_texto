@@ -1,9 +1,10 @@
 import os
+import sys
 import shutil
 from PyQt6.QtGui import QAction
 from PyQt6.QtCore import Qt, QDir
 from PyQt6.QtGui import QIcon, QColor, QPalette, QFileSystemModel
-from PyQt6.QtWidgets import (QMainWindow, QFileDialog, QSplitter, QVBoxLayout, QTextEdit,QDialog,
+from PyQt6.QtWidgets import (QMainWindow, QFileDialog, QSplitter, QVBoxLayout, QTextEdit,QDialog,QApplication,QApplication,
                            QWidget, QLabel, QPushButton, QHBoxLayout, QLineEdit,
                            QMessageBox, QInputDialog, QTabWidget, QMenu)
 from .tree_view import DragDropTreeView
@@ -16,13 +17,22 @@ class EditorTexto(QMainWindow):
         
         project_dir = os.path.dirname(os.path.abspath(__file__))
 
-        # Construye la ruta relativa al logo
+    # Construye la ruta relativa al logo
         logo_path = os.path.join(project_dir, 'logo', 'Designer (1).ico')
+        
+    
+        # Crear el icono de la aplicación
+        app_icon = QIcon(logo_path)
+        
 
-        # Configura el ícono de la ventana usando la ruta relativa
-        self.setWindowIcon(QIcon(logo_path))
+    
+        # Establecer el icono de la aplicación
+        self.setWindowIcon(app_icon)
+        QApplication.setWindowIcon(app_icon)
+
         self.initUI()
         self.current_file = None
+         
 
     def initUI(self):
 
@@ -281,6 +291,10 @@ class EditorTexto(QMainWindow):
 
 
     def set_dark_theme(self):
+        app = QApplication.instance()
+        if app is None:
+            app = QApplication(sys.argv)
+
         palette = QPalette()
         palette.setColor(QPalette.ColorRole.Window, QColor(53, 53, 53))
         palette.setColor(QPalette.ColorRole.WindowText, Qt.GlobalColor.white)

@@ -1,6 +1,6 @@
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QPlainTextEdit, QWidget,QTextEdit
-from PyQt6.QtGui import QPainter, QColor, QTextFormat 
+from PyQt6.QtWidgets import QPlainTextEdit, QWidget,QTextEdit 
+from PyQt6.QtGui import QPainter, QColor, QTextFormat , QPalette
 from .syntax_highlighter import PythonHighlighter
 from .line_numbers import LineNumberArea
 
@@ -19,6 +19,15 @@ class CodeEditor(QPlainTextEdit):
 
         self.update_line_number_area_width(0)
         self.highlight_current_line()
+
+        self.apply_dark_theme()
+
+    def apply_dark_theme(self):
+        palette = QPalette()
+        palette.setColor(QPalette.ColorRole.Base, QColor(25, 25, 25))  # Fondo del editor
+        palette.setColor(QPalette.ColorRole.Text, QColor(255, 255, 255))  # Texto del editor
+        self.setPalette(palette)
+
 
 
     def update_line_number_area_width(self, _=None):
@@ -81,13 +90,3 @@ class CodeEditor(QPlainTextEdit):
             bottom = top + self.blockBoundingRect(block).height()
             block_number += 1
 
-class Console(QPlainTextEdit):
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setReadOnly(True)  # Hacer que la consola sea de solo lectura
-
-    def write(self, text):
-        # Método para agregar texto a la consola
-        self.appendPlainText(text)  # Añade el texto al final del área de texto
-        self.verticalScrollBar().setValue(self.verticalScrollBar().maximum())  # Desplaza hacia abajo
