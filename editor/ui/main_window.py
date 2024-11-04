@@ -309,6 +309,10 @@ class EditorTexto(QMainWindow):
         self.abrir_carpeta = QAction('Abrir carpeta', self)
         self.abrir_carpeta.setShortcut('Ctrl+Shift+O') 
         self.abrir_carpeta.triggered.connect(self.abrirCarpeta)
+        
+        self.analisis_lexico = QAction('Análisis Léxico', self)
+        self.analisis_lexico.setShortcut('Ctrl+L')
+        self.analisis_lexico.triggered.connect(self.analizarLexico)
 
         self.salir = QAction('Salir', self)
         self.salir.setShortcut('Ctrl+Q')
@@ -320,6 +324,7 @@ class EditorTexto(QMainWindow):
         menu_archivo.addAction(self.abrir_archivo)
         menu_archivo.addAction(self.abrir_carpeta)
         menu_archivo.addAction(self.guardar_archivo)
+        menu_archivo.addAction(self.analisis_lexico)
         menu_archivo.addAction(self.salir)
 
     def crearArchivo(self):
@@ -335,6 +340,70 @@ class EditorTexto(QMainWindow):
 
             self.model.setRootPath(folder_path)  # Actualizar la vista del directorio
             self.input_nombre.clear()  # Limpiar el campo de entrada
+
+    def analizarLexico(self):
+    # Abrir un cuadro de diálogo para seleccionar un archivo
+        file_path, _ = QFileDialog.getOpenFileName(
+        self,
+        "Seleccionar archivo para análisis léxico",
+        "",
+        "Python Files (*.py);;Text Files (*.txt);;All Files (*)"
+        )
+
+        if not file_path:
+            QMessageBox.warning(self, "Advertencia", "No se seleccionó ningún archivo.")
+            return
+
+        try:
+              
+            with open(file_path, 'r') as file:
+             code = file.read()
+             
+
+            # Realizar el análisis léxico
+            analyzer = LexicalAnalyzer()
+            tokens, stats = analyzer.analyze(code)
+            code_without_whitespace = ''.join(code.split())
+                # Formatear y mostrar los resultados
+            self.mostrarResultados(tokens, stats, code_without_whitespace)
+            
+            
+
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Error al leer o analizar el archivo: {e}")
+
+    def mostrarResultados(self, tokens, stats,code_without_whitespace):
+        # Formatear los resultados para mostrarlos en un cuadro de diálogo
+
+        token_message = "\n".join(str(token) for token in tokens)
+        stats_message = "\n".join(f"{key}: {value}" for key, value in stats.items())
+        
+    
+        complete_message = (
+            f"Código sin espacios:\n{code_without_whitespace}\n\n"
+            f"Tokens:\n{token_message}\n\n"
+            f"Estadísticas de Tokens:\n{stats_message}"
+        )
+
+        # Mostrar los resultados en un cuadro de diálogo
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Resultado del Análisis Léxico")
+
+        text_edit = QTextEdit()
+        text_edit.setPlainText(complete_message)
+        text_edit.setReadOnly(True)
+        text_edit.setFixedSize(600, 400)
+
+        layout = QVBoxLayout()
+        layout.addWidget(text_edit)
+
+        close_button = QPushButton("Cerrar")
+        close_button.clicked.connect(dialog.accept)
+        layout.addWidget(close_button)
+
+        dialog.setLayout(layout)
+        dialog.exec()        
+
 
     def crearCarpeta(self):
         folder_name = self.input_nombre.text().strip()
