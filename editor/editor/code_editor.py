@@ -80,3 +80,14 @@ class CodeEditor(QPlainTextEdit):
             top = bottom
             bottom = top + self.blockBoundingRect(block).height()
             block_number += 1
+
+class Console(QPlainTextEdit):
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setReadOnly(True)  # Hacer que la consola sea de solo lectura
+
+    def write(self, text):
+        # Método para agregar texto a la consola
+        self.appendPlainText(text)  # Añade el texto al final del área de texto
+        self.verticalScrollBar().setValue(self.verticalScrollBar().maximum())  # Desplaza hacia abajo

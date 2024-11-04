@@ -3,11 +3,12 @@ import shutil
 from PyQt6.QtGui import QAction
 from PyQt6.QtCore import Qt, QDir
 from PyQt6.QtGui import QIcon, QColor, QPalette, QFileSystemModel
-from PyQt6.QtWidgets import (QMainWindow, QFileDialog, QSplitter, QVBoxLayout, 
+from PyQt6.QtWidgets import (QMainWindow, QFileDialog, QSplitter, QVBoxLayout, QTextEdit,QDialog,
                            QWidget, QLabel, QPushButton, QHBoxLayout, QLineEdit,
                            QMessageBox, QInputDialog, QTabWidget, QMenu)
 from .tree_view import DragDropTreeView
 from ..editor.code_editor import CodeEditor
+from lexical_analyzer import LexicalAnalyzer, TokenType, Token
 
 class EditorTexto(QMainWindow):
     def __init__(self):
@@ -27,6 +28,8 @@ class EditorTexto(QMainWindow):
 
         self.welcome_screen = QWidget()
         welcome_layout = QVBoxLayout()
+
+        
 
         self.welcome_label = QLabel("Bienvenido")
         self.welcome_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -77,6 +80,7 @@ class EditorTexto(QMainWindow):
 
         self.show()
 
+    
     def move_file(self, index):
         source_path = self.model.filePath(index)
         if not os.path.exists(source_path):
@@ -142,6 +146,67 @@ class EditorTexto(QMainWindow):
 
         self.setCentralWidget(self.splitter)
 
+
+
+
+    def lexical_analysis(self, index):
+        # Obtener la ruta del archivo seleccionado
+        file_path = self.model.filePath(index)
+
+        try:
+            # Leer el contenido del archivo
+            with open(file_path, 'r') as file:
+                code = file.read()
+
+        # Eliminar espacios en blanco del código
+            code_without_whitespace = ''.join(code.split())
+
+        # Instancia del analizador léxico y análisis
+            analyzer = LexicalAnalyzer()
+            tokens, stats = analyzer.analyze(code)  # Recibe tokens y estadísticas
+
+        # Formatear los tokens para mostrarlos en un mensaje
+            token_message = "\n".join(str(token) for token in tokens)
+        
+        # Formatear estadísticas para mostrarlas
+            stats_message = "\n".join(f"{key}: {value}" for key, value in stats.items())
+
+        # Crear mensaje completo
+            complete_message = (
+            f"Código sin espacios:\n{code_without_whitespace}\n\n"
+            f"Tokens:\n{token_message}\n\n"
+            f"Estadísticas de Tokens:\n{stats_message}"
+        )
+
+        # Crear un cuadro de diálogo personalizado para mostrar los resultados
+            dialog = QDialog(self)
+            dialog.setWindowTitle("Resultado del Análisis Léxico")
+        
+        # Crear un QTextEdit para mostrar el mensaje completo con scroll
+            text_edit = QTextEdit()
+            text_edit.setPlainText(complete_message)
+            text_edit.setReadOnly(True)
+
+        # Ajustar el tamaño del cuadro de texto
+            text_edit.setFixedSize(600, 400)
+
+        # Layout para el diálogo
+            layout = QVBoxLayout()
+            layout.addWidget(text_edit)
+
+        # Botón de cerrar
+            close_button = QPushButton("Cerrar")
+            close_button.clicked.connect(dialog.accept)
+            layout.addWidget(close_button)
+
+            dialog.setLayout(layout)
+
+            # Ejecutar el diálogo de manera modal
+            dialog.exec()
+
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"No se pudo analizar el archivo: {e}", 
+                             QMessageBox.StandardButton.Ok)
     def show_context_menu(self, position):
         index = self.tree.indexAt(position)
         menu = QMenu()
@@ -160,6 +225,10 @@ class EditorTexto(QMainWindow):
             if not self.model.isDir(index):
                 move_action = menu.addAction("Mover")
                 move_action.triggered.connect(lambda: self.move_file(index))
+                
+                lexical_analysis_action = menu.addAction("Análisis Léxico")
+                lexical_analysis_action.triggered.connect(lambda: self.lexical_analysis(index))
+
 
         else:
             # Si no se hizo clic en un elemento válido, asumimos que se hizo clic en el espacio vacío
