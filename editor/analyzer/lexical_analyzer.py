@@ -1,19 +1,15 @@
 from enum import Enum, auto
 
-# Definición de TokenType usando Enum
 class TokenType(Enum):
-    KEYWORD = auto()
-    IDENTIFIER = auto()
-    NUMBER = auto()
-    STRING = auto()
-    OPERATOR = auto()
-    DELIMITER = auto()
-    COMMENT = auto()
-    INVALID = auto()
-    LETTER = auto()
-    INDIVIDUAL_NUMBER = auto()  # Para números individuales dentro de identificadores
+    IDENTIFIER = auto()   # Variables, nombres de funciones, etc.
+    NUMBER = auto()       # Números (enteros o decimales)
+    STRING = auto()       # Cadenas de texto
+    OPERATOR = auto()     # Operadores (+, -, *, /, =, etc.)
+    KEYWORD = auto()      # Palabras clave (if, else, while, for, etc.)
+    DELIMITER = auto()    # Delimitadores (paréntesis, comas, dos puntos, etc.)
+    COMMENT = auto()      # Comentarios
+    INVALID = auto()      # Tokens inválidos
 
-# Definición de la clase Token
 class Token:
     def __init__(self, token_type, value, line, column):
         self.type = token_type
@@ -23,7 +19,6 @@ class Token:
 
     def __repr__(self):
         return f'Token(type={self.type}, value={self.value}, line={self.line}, column={self.column})'
-
 
 class LexicalAnalyzer:
     def __init__(self):
@@ -36,25 +31,31 @@ class LexicalAnalyzer:
         }
         
         self.operators = {
-            '+', '-', '*', '/', '//', '%', '**', '=', '+=', '-=', '*=', '/=',
-            '//=', '%=', '**=', '==', '!=', '>', '<', '>=', '<=', 'and', 'or',
-            'not', 'is', 'is not', 'in', 'not in'
+            '+': TokenType.OPERATOR, '-': TokenType.OPERATOR, 
+            '*': TokenType.OPERATOR, '/': TokenType.OPERATOR,
+            '//': TokenType.OPERATOR, '%': TokenType.OPERATOR, 
+            '**': TokenType.OPERATOR, '=': TokenType.OPERATOR, 
+            '+=': TokenType.OPERATOR, '-=': TokenType.OPERATOR, 
+            '*=': TokenType.OPERATOR, '/=': TokenType.OPERATOR,
+            '//=': TokenType.OPERATOR, '%=': TokenType.OPERATOR, 
+            '**=': TokenType.OPERATOR, '==': TokenType.OPERATOR, 
+            '!=': TokenType.OPERATOR, '>': TokenType.OPERATOR, 
+            '<': TokenType.OPERATOR, '>=': TokenType.OPERATOR, 
+            '<=': TokenType.OPERATOR
         }
         
         self.delimiters = {
-            '(', ')', '[', ']', '{', '}', ',', ':', '.', ';', '@', '=', '->',
-            '+=', '-=', '*=', '/=', '//=', '%=', '@=', '&=', '|=', '^=', '>>=',
-            '<<=', '**='
+            '(', ')', '[', ']', '{', '}', ',', ':', '.', ';', '@', '=', '->'
         }
 
     def analyze(self, code):
         tokens = []
-        total_letters = 0
         total_numbers = 0
         total_special_chars = 0
         total_keywords = 0
         total_invalid_chars = 0
-        total_comments = 0  # Contador de comentarios
+        total_comments = 0
+        total_operators = 0
         
         lines = code.split('\n')
     
@@ -76,27 +77,18 @@ class LexicalAnalyzer:
                         i += 1
                     word = line[start:i]
                     if word in self.keywords:
-                        tokens.append(Token(TokenType.KEYWORD, word, line_num, col))
+                        tokens.append((TokenType.KEYWORD, word))
                         total_keywords += 1
                     else:
-                        tokens.append(Token(TokenType.IDENTIFIER, word, line_num, col))
+                        tokens.append((TokenType.IDENTIFIER, word))
                     
-                    # Tokenizar cada letra y número del identificador o palabra clave
-                    for j, w_char in enumerate(word):
-                        token_type = TokenType.LETTER if w_char.isalpha() else TokenType.INDIVIDUAL_NUMBER
-                        tokens.append(Token(token_type, w_char, line_num, col + j))
-                        total_letters += 1 if w_char.isalpha() else 0
-                        total_numbers += 1 if w_char.isdigit() else 0
-
-                    col += i - start
-                
                 # Números
                 elif char.isdigit():
                     start = i
                     while i < len(line) and (line[i].isdigit() or line[i] == '.'):
                         i += 1
                     number_token = line[start:i]
-                    tokens.append(Token(TokenType.NUMBER, number_token, line_num, col))
+                    tokens.append((TokenType.NUMBER, number_token))
                     total_numbers += len(number_token)
                     col += i - start
                 
@@ -112,13 +104,13 @@ class LexicalAnalyzer:
                             i += 1
                     if i < len(line):
                         i += 1
-                        tokens.append(Token(TokenType.STRING, line[start:i], line_num, col))
+                        tokens.append((TokenType.STRING, line[start:i]))
                     col += i - start
                 
                 # Comentarios
                 elif char == '#':
-                    tokens.append(Token(TokenType.COMMENT, line[i:], line_num, col))
-                    total_comments += 1  # Contar el comentario
+                    tokens.append((TokenType.COMMENT, line[i:]))
+                    total_comments += 1
                     break
                 
                 # Operadores y delimitadores
@@ -129,24 +121,25 @@ class LexicalAnalyzer:
                         op += line[i]
                     
                     if op in self.operators:
-                        tokens.append(Token(TokenType.OPERATOR, op, line_num, col))
+                        tokens.append((TokenType.OPERATOR, op))
+                        total_operators += 1
                     elif char in self.delimiters:
-                        tokens.append(Token(TokenType.DELIMITER, char, line_num, col))
+                        tokens.append((TokenType.DELIMITER, char))
                     total_special_chars += len(op)
                     i += 1
                     col += len(op)
 
                 # Caracteres no válidos
                 else:
-                    tokens.append(Token(TokenType.INVALID, char, line_num, col))
+                    tokens.append((TokenType.INVALID, char))
                     total_invalid_chars += 1
                     i += 1
 
         return tokens, {
-            'total_letters': total_letters,
             'total_numbers': total_numbers,
             'total_special_chars': total_special_chars,
             'total_keywords': total_keywords,
             'total_invalid_chars': total_invalid_chars,
             'total_comments': total_comments,
+            'total_operators': total_operators,
         }

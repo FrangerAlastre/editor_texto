@@ -9,7 +9,10 @@ from PyQt6.QtWidgets import (QMainWindow, QFileDialog, QSplitter, QVBoxLayout, Q
                            QMessageBox, QInputDialog, QTabWidget, QMenu)
 from .tree_view import DragDropTreeView
 from ..editor.code_editor import CodeEditor
-from lexical_analyzer import LexicalAnalyzer, TokenType, Token
+from editor.analyzer.lexical_analyzer import LexicalAnalyzer, TokenType, Token
+from editor.analyzer_s.sintax_analyzer import Lexer,Parser
+
+
 
 class EditorTexto(QMainWindow):
     def __init__(self):
@@ -159,6 +162,8 @@ class EditorTexto(QMainWindow):
 
 
 
+
+
     def lexical_analysis(self, index):
         # Obtener la ruta del archivo seleccionado
         file_path = self.model.filePath(index)
@@ -168,43 +173,51 @@ class EditorTexto(QMainWindow):
             with open(file_path, 'r') as file:
                 code = file.read()
 
-        # Eliminar espacios en blanco del código
+            if not code:
+                QMessageBox.warning(self, "Advertencia", "El archivo está vacío.")
+                return
+
+            # Eliminar espacios en blanco del código
             code_without_whitespace = ''.join(code.split())
 
-        # Instancia del analizador léxico y análisis
+            # Instancia del analizador léxico y análisis
             analyzer = LexicalAnalyzer()
             tokens, stats = analyzer.analyze(code)  # Recibe tokens y estadísticas
 
-        # Formatear los tokens para mostrarlos en un mensaje
+            if not tokens:
+                QMessageBox.warning(self, "Advertencia", "No se encontraron tokens válidos.")
+                return
+
+            # Formatear los tokens para mostrarlos en un mensaje
             token_message = "\n".join(str(token) for token in tokens)
-        
-        # Formatear estadísticas para mostrarlas
+
+            # Formatear estadísticas para mostrarlas
             stats_message = "\n".join(f"{key}: {value}" for key, value in stats.items())
 
-        # Crear mensaje completo
+            # Crear mensaje completo
             complete_message = (
-            f"Código sin espacios:\n{code_without_whitespace}\n\n"
-            f"Tokens:\n{token_message}\n\n"
-            f"Estadísticas de Tokens:\n{stats_message}"
-        )
+                f"Código sin espacios:\n{code_without_whitespace}\n\n"
+                f"Tokens:\n{token_message}\n\n"
+                f"Estadísticas de Tokens:\n{stats_message}"
+            )
 
-        # Crear un cuadro de diálogo personalizado para mostrar los resultados
+            # Crear un cuadro de diálogo personalizado para mostrar los resultados
             dialog = QDialog(self)
             dialog.setWindowTitle("Resultado del Análisis Léxico")
-        
-        # Crear un QTextEdit para mostrar el mensaje completo con scroll
+
+            # Crear un QTextEdit para mostrar el mensaje completo con scroll
             text_edit = QTextEdit()
             text_edit.setPlainText(complete_message)
             text_edit.setReadOnly(True)
 
-        # Ajustar el tamaño del cuadro de texto
+            # Ajustar el tamaño del cuadro de texto
             text_edit.setFixedSize(600, 400)
 
-        # Layout para el diálogo
+            # Layout para el diálogo
             layout = QVBoxLayout()
             layout.addWidget(text_edit)
 
-        # Botón de cerrar
+            # Botón de cerrar
             close_button = QPushButton("Cerrar")
             close_button.clicked.connect(dialog.accept)
             layout.addWidget(close_button)
@@ -214,9 +227,140 @@ class EditorTexto(QMainWindow):
             # Ejecutar el diálogo de manera modal
             dialog.exec()
 
+        except FileNotFoundError:
+            QMessageBox.critical(self, "Error", f"El archivo {file_path} no se encontró.")
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"No se pudo analizar el archivo: {e}", 
+            QMessageBox.critical(self, "Error", f"No se pudo realizar el análisis léxico: {e}", 
                              QMessageBox.StandardButton.Ok)
+            
+
+    def analyze_code(self, index):
+        file_path = self.model.filePath(index)
+        try:
+            # Leer el contenido del archivo
+            with open(file_path, 'r') as file:
+                code = file.read()
+            
+            if not code:
+                QMessageBox.warning(self, "Advertencia", "El archivo está vacío.")
+                return
+
+            # Crear una ventana de resultados
+            result_dialog = QDialog(self)
+            result_dialog.setWindowTitle("Resultados del Análisis")
+            result_dialog.resize(800, 600)
+            
+            # Crear un layout vertical para la ventana
+            layout = QVBoxLayout()
+            
+            # Crear un QTabWidget para separar análisis léxico y sintáctico
+            tab_widget = QTabWidget()
+            
+            # Tab para análisis léxico
+            lexical_tab = QWidget()
+            lexical_layout = QVBoxLayout()
+            lexical_text = QTextEdit()
+            lexical_text.setReadOnly(True)
+            lexical_layout.addWidget(lexical_text)
+            lexical_tab.setLayout(lexical_layout)
+            
+            # Tab para análisis sintáctico
+            syntactic_tab = QWidget()
+            syntactic_layout = QVBoxLayout()
+            syntactic_text = QTextEdit()
+            syntactic_text.setReadOnly(True)
+            syntactic_layout.addWidget(syntactic_text)
+            syntactic_tab.setLayout(syntactic_layout)
+            
+            # Agregar tabs al QTabWidget
+            tab_widget.addTab(lexical_tab, "Análisis Léxico")
+            tab_widget.addTab(syntactic_tab, "Análisis Sintáctico")
+            
+            # Agregar el QTabWidget al layout principal
+            layout.addWidget(tab_widget)
+            
+            # Botón para cerrar
+            close_button = QPushButton("Cerrar")
+            close_button.clicked.connect(result_dialog.close)
+            layout.addWidget(close_button)
+            
+            result_dialog.setLayout(layout)
+
+            # Realizar análisis léxico
+            lexer = Lexer()
+            lexer.build()
+            lexer.input(code)
+            
+            # Recolectar tokens
+            tokens = []
+            stats = {'total_tokens': 0, 'lines': code.count('\n') + 1}
+            
+            while True:
+                tok = lexer.token()
+                if not tok:
+                    break
+                tokens.append(tok)
+                stats['total_tokens'] += 1
+
+            # Mostrar resultados del análisis léxico
+            lexical_output = "=== Análisis Léxico ===\n\n"
+            lexical_output += "Tokens encontrados:\n"
+            for token in tokens:
+                lexical_output += f"  Token: {token.type}, Valor: {token.value}, Línea: {token.lineno}\n"
+            
+            lexical_output += "\nEstadísticas del análisis léxico:\n"
+            lexical_output += f"  Total de tokens: {stats['total_tokens']}\n"
+            lexical_output += f"  Total de líneas: {stats['lines']}\n"
+            
+            lexical_text.setText(lexical_output)
+
+            # Realizar análisis sintáctico
+            parser = Parser()
+            success, errors, ast = parser.parse(code)
+
+            # Mostrar resultados del análisis sintáctico
+            syntactic_output = "=== Análisis Sintáctico ===\n\n"
+            
+            if success:
+                syntactic_output += "Análisis sintáctico exitoso!\n\n"
+                syntactic_output += "Árbol Sintáctico:\n"
+                
+                # Función para construir la representación del árbol
+                def build_ast_string(node, level=0):
+                    result = ""
+                    indent = "  " * level
+                    if isinstance(node, tuple):
+                        result += f"{indent}{node[0]}\n"
+                        for child in node[1:]:
+                            result += build_ast_string(child, level + 1)
+                    elif isinstance(node, list):
+                        for item in node:
+                            result += build_ast_string(item, level)
+                    else:
+                        result += f"{indent}{node}\n"
+                    return result
+                
+                syntactic_output += build_ast_string(ast)
+            else:
+                syntactic_output += "Errores encontrados durante el análisis sintáctico:\n"
+                for error in errors:
+                    syntactic_output += f"- {error}\n"
+            
+            syntactic_text.setText(syntactic_output)
+
+            result_dialog.exec()
+
+        except FileNotFoundError:
+            QMessageBox.critical(self, "Error", f"El archivo {file_path} no se encontró.")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Error durante el análisis: {str(e)}")
+
+
+
+
+    
+  
+        
     def show_context_menu(self, position):
         index = self.tree.indexAt(position)
         menu = QMenu()
@@ -239,7 +383,8 @@ class EditorTexto(QMainWindow):
                 lexical_analysis_action = menu.addAction("Análisis Léxico")
                 lexical_analysis_action.triggered.connect(lambda: self.lexical_analysis(index))
 
-
+                analyze_code_action = menu.addAction("Análisis sintactico")
+                analyze_code_action.triggered.connect(lambda: self.analyze_code(index))
         else:
             # Si no se hizo clic en un elemento válido, asumimos que se hizo clic en el espacio vacío
             create_file_action = menu.addAction("Crear archivo ")
